@@ -23,7 +23,9 @@ import {
   Smartphone as PhoneIcon,
   RefreshCw,
   ExternalLink,
-  Cpu
+  Cpu,
+  Terminal,
+  Copy
 } from 'lucide-react';
 import { Account, AccountType, Transaction, TransactionType } from '../types';
 
@@ -66,6 +68,7 @@ const Settings: React.FC<SettingsProps> = ({
 }) => {
   const [showPinChange, setShowPinChange] = useState(false);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
+  const [showDevConsole, setShowDevConsole] = useState(false);
   const [activeInstallTab, setActiveInstallTab] = useState<'pwa' | 'apk'>('pwa');
   
   const [showAccountForm, setShowAccountForm] = useState(false);
@@ -225,6 +228,11 @@ const Settings: React.FC<SettingsProps> = ({
     }
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert("Command copied to clipboard!");
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300 pb-10">
       <div className="px-1">
@@ -350,20 +358,58 @@ const Settings: React.FC<SettingsProps> = ({
             ) : (
               <div className="space-y-3 animate-in fade-in slide-in-from-right-2">
                 <p className="text-[11px] text-gray-600 dark:text-slate-400 leading-relaxed">
-                  Export as a physical <b>.apk</b> file for the Play Store or local sharing.
+                  Export as a physical <b>.apk</b> file for the Play Store using Capacitor.
                 </p>
                 <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl font-mono text-[9px] text-slate-600 dark:text-slate-300 space-y-1">
-                  <p>1. npm install @capacitor/core @capacitor/cli</p>
-                  <p>2. npx cap init TakaTracker</p>
+                  <p>1. npm install @capacitor/core @capacitor/cli @capacitor/android</p>
+                  <p>2. npx cap init TakaTracker com.yourname.app --web-dir .</p>
                   <p>3. npx cap add android</p>
                   <p>4. npx cap open android</p>
                 </div>
                 <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 rounded-xl">
                   <Cpu size={14} className="text-amber-600" />
-                  <p className="text-[9px] text-amber-700 dark:text-amber-400">Requires Android Studio and Node.js installed on your PC.</p>
+                  <p className="text-[9px] text-amber-700 dark:text-amber-400">Requires Android Studio and Node.js on your computer.</p>
                 </div>
               </div>
             )}
+          </div>
+        )}
+      </section>
+
+      {/* Developer Console (Android Studio Commands) */}
+      <section className="bg-slate-900 text-slate-300 p-5 rounded-[2rem] shadow-sm border border-slate-800 transition-colors">
+        <button onClick={() => setShowDevConsole(!showDevConsole)} className="w-full flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Terminal size={18} className="text-emerald-500" />
+            <h3 className="font-bold text-white text-sm">Developer Console</h3>
+          </div>
+          <ChevronRight size={18} className={`text-slate-600 transition-transform ${showDevConsole ? 'rotate-90' : ''}`} />
+        </button>
+        
+        {showDevConsole && (
+          <div className="mt-4 pt-3 border-t border-slate-800 space-y-4">
+            <p className="text-[10px] font-medium leading-relaxed">
+              Run these commands in your project terminal to generate the Android project for Android Studio.
+            </p>
+            
+            <div className="space-y-3">
+              {[
+                { label: 'Step 1: Setup', cmd: 'npm install @capacitor/core @capacitor/cli @capacitor/android' },
+                { label: 'Step 2: Init', cmd: 'npx cap init TakaTracker com.personal.takatracker --web-dir .' },
+                { label: 'Step 3: Add Android', cmd: 'npx cap add android' },
+                { label: 'Step 4: Build APK', cmd: 'npx cap open android' },
+              ].map((step, idx) => (
+                <div key={idx} className="bg-black/40 rounded-xl p-3 border border-white/5 group">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase">{step.label}</span>
+                    <button onClick={() => copyToClipboard(step.cmd)} className="text-slate-500 hover:text-white transition-colors">
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                  <code className="text-[10px] font-mono break-all text-emerald-400">{step.cmd}</code>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </section>
@@ -404,7 +450,7 @@ const Settings: React.FC<SettingsProps> = ({
 
       <div className="text-center pt-10">
         <p className="text-[10px] text-gray-300 dark:text-slate-600 font-bold uppercase flex items-center justify-center gap-2">
-          <Lock size={12} /> TakaTracker v1.2.0 Secure
+          <Lock size={12} /> TakaTracker v1.2.5 Secure
         </p>
       </div>
     </div>

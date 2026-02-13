@@ -12,28 +12,50 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="TakaTracker">
+    
+    <!-- Splash Screen Icons (Standard) -->
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2489/2489756.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --sat: env(safe-area-inset-top);
+            --sar: env(safe-area-inset-right);
+            --sab: env(safe-area-inset-bottom);
+            --sal: env(safe-area-inset-left);
+        }
+
         body { 
             font-family: 'Inter', sans-serif; 
-            overscroll-behavior-y: contain; /* Prevents pull-to-refresh on mobile */
+            overscroll-behavior-y: none; /* Disables pull-to-refresh completely */
+            user-select: none; /* Prevents accidental text selection (native feel) */
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            overflow: hidden; /* Prevent body scroll, use inner scroll */
         }
-        /* Hide scrollbars but keep functionality */
+
+        /* Standalone App Layout */
+        #root { 
+            height: 100vh;
+            height: -webkit-fill-available;
+            display: flex; 
+            flex-direction: column; 
+            background-color: #f9fafb;
+        }
+        
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Animation for login feedback */
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-5px); }
-          75% { transform: translateX(5px); }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        .animate-shake { animation: shake 0.2s ease-in-out 0s 2; }
+        .page-transition { animation: fadeIn 0.3s ease-out; }
 
-        /* Ensure smooth full-screen height on mobile */
-        #root { min-height: 100vh; display: flex; flex-direction: column; }
+        /* Dark mode overrides for systemic elements */
+        .dark #root { background-color: #020617; }
     </style>
     <script type="importmap">
 {
@@ -54,13 +76,21 @@
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
     <script>
-        // Register Service Worker for PWA / APK-like behavior
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker registered'))
-                    .catch(err => console.log('Service Worker registration failed', err));
+                // Using a relative path without leading dot for better sandbox compatibility
+                const swPath = 'sw.js';
+                navigator.serviceWorker.register(swPath)
+                    .then(reg => console.log('TakaTracker Local Engine Ready'))
+                    .catch(err => {
+                        console.warn('Local Engine registration deferred or blocked by environment policy.', err.message);
+                    });
             });
+        }
+
+        // Handle standalone detection
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            console.log('Running as Local App');
         }
     </script>
 </body>

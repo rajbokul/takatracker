@@ -11,7 +11,9 @@ import {
   LogOut,
   Settings as SettingsIcon,
   Moon,
-  Sun
+  Sun,
+  WifiOff,
+  Cloud
 } from 'lucide-react';
 import { 
   Transaction, 
@@ -34,7 +36,7 @@ const STORAGE_KEY = 'taka_tracker_data';
 const LIVERY_KEY = 'taka_tracker_livery';
 const THEME_KEY = 'taka_tracker_theme';
 const CATEGORIES_KEY = 'taka_tracker_categories';
-const SESSION_TIMEOUT_MS = 2 * 60 * 1000;
+const SESSION_TIMEOUT_MS = 5 * 60 * 1000; // Increased to 5 mins for local usage convenience
 
 const DEFAULT_INCOME_HEADS = ['Salary', 'Freelance', 'Investment', 'Business', 'Gift', 'Other'];
 const DEFAULT_EXPENSE_HEADS = ['Food', 'Rent', 'Shopping', 'Utility', 'Health', 'Travel', 'Entertainment', 'Subscription', 'Other'];
@@ -44,13 +46,11 @@ const App: React.FC = () => {
   const [view, setView] = useState<ViewType>('DASHBOARD');
   const [accentColor, setAccentColor] = useState('emerald');
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   
   const [incomeHeads, setIncomeHeads] = useState<string[]>(DEFAULT_INCOME_HEADS);
   const [expenseHeads, setExpenseHeads] = useState<string[]>(DEFAULT_EXPENSE_HEADS);
-
-  // Cleared all test data for production/fresh start
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-
   const [accounts, setAccounts] = useState<Account[]>([
     { id: '1', name: 'Pocket Cash', type: AccountType.CASH, balance: 0 },
   ]);
@@ -61,12 +61,23 @@ const App: React.FC = () => {
   
   const activityTimerRef = useRef<number | null>(null);
 
+  // Monitor Network
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
   const resetActivityTimer = () => {
     if (activityTimerRef.current) window.clearTimeout(activityTimerRef.current);
     if (isAuthenticated) {
       activityTimerRef.current = window.setTimeout(() => {
         handleLogout();
-        alert("Session expired due to inactivity.");
       }, SESSION_TIMEOUT_MS);
     }
   };
@@ -103,23 +114,19 @@ const App: React.FC = () => {
     if (saved) {
       try {
         const { transactions: t, accounts: a } = JSON.parse(saved);
-        if (t && a && a.length > 0) {
+        if (t && a) {
           setTransactions(t);
           setAccounts(a);
         }
-      } catch (e) {
-        console.error("Failed to parse saved data", e);
-      }
+      } catch (e) { console.error(e); }
     }
   }, []);
 
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
-      document.body.className = 'bg-slate-950 text-slate-100 transition-colors duration-300';
     } else {
       document.documentElement.classList.remove('dark');
-      document.body.className = 'bg-gray-50 text-gray-900 transition-colors duration-300';
     }
     localStorage.setItem(THEME_KEY, isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
@@ -159,11 +166,6 @@ const App: React.FC = () => {
     setTransactions(transactions.filter(t => t.id !== id));
   };
 
-  const handleImportData = (data: { accounts: Account[]; transactions: Transaction[] }) => {
-    if (data.accounts) setAccounts(data.accounts);
-    if (data.transactions) setTransactions(data.transactions);
-  };
-
   const updateAccountBalance = (accountId: string, amount: number, type: TransactionType) => {
     setAccounts(prev => prev.map(acc => {
       if (acc.id !== accountId) return acc;
@@ -176,11 +178,6 @@ const App: React.FC = () => {
       }
       return { ...acc, balance: acc.balance + diff };
     }));
-  };
-
-  const openEdit = (tx: Transaction) => {
-    setEditingTransaction(tx);
-    setIsFormOpen(true);
   };
 
   const colorClasses: Record<string, string> = {
@@ -196,7 +193,7 @@ const App: React.FC = () => {
     blue: 'text-blue-600',
     indigo: 'text-indigo-600',
     rose: 'text-rose-600',
-    slate: 'text-slate-800 dark:text-slate-300'
+    slate: 'text-slate-800'
   };
 
   if (!isAuthenticated) {
@@ -204,89 +201,88 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`flex flex-col min-h-screen max-w-md mx-auto shadow-xl overflow-hidden relative transition-colors duration-300`}>
-      <header className={`${colorClasses[accentColor]} text-white p-4 pt-6 pb-4 flex justify-between items-center sticky top-0 z-10 shadow-md transition-colors duration-300`}>
+    <div className={`flex flex-col h-screen max-w-md mx-auto relative overflow-hidden transition-colors duration-300 bg-gray-50 dark:bg-slate-950`}>
+      {/* Header with Safe Area support */}
+      <header className={`${colorClasses[accentColor]} text-white px-4 pt-[env(safe-area-inset-top,20px)] pb-4 flex justify-between items-center sticky top-0 z-30 shadow-md`}>
         <div className="flex items-center gap-3">
-          <div className={`p-1 bg-white rounded-lg ${textClasses[accentColor]} font-bold`}>৳</div>
+          <div className="bg-white rounded-xl p-1.5 shadow-sm">
+            <span className={`${textClasses[accentColor]} font-black text-lg`}>৳</span>
+          </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight">TakaTracker</h1>
-            <p className="text-[10px] text-white/80">Secure Banking Session</p>
+            <h1 className="text-lg font-bold tracking-tight leading-none">TakaTracker</h1>
+            <div className="flex items-center gap-1.5 mt-1">
+               {isOnline ? <Cloud size={10} className="text-emerald-300" /> : <WifiOff size={10} className="text-red-300" />}
+               <span className="text-[9px] uppercase font-bold tracking-wider opacity-80">
+                 {isOnline ? 'Local Sync Active' : 'Offline Mode'}
+               </span>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
-            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          >
+        <div className="flex items-center gap-1.5">
+          <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 bg-white/10 rounded-full active:scale-90 transition-transform">
             {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <button 
-            onClick={() => setIsAIOpen(true)}
-            className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
-          >
-            <Sparkles size={18} />
-          </button>
-          <button 
-            onClick={() => setView('SETTINGS')}
-            className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
-            title="Settings"
-          >
+          <button onClick={() => setView('SETTINGS')} className="p-2.5 bg-white/10 rounded-full active:scale-90 transition-transform">
             <SettingsIcon size={18} />
-          </button>
-          <button 
-            onClick={handleLogout}
-            className="p-2 bg-red-500/20 text-white rounded-full hover:bg-red-500 transition-colors"
-            title="Logout"
-          >
-            <LogOut size={18} />
           </button>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto no-scrollbar p-4 pb-24">
-        {view === 'DASHBOARD' && <Dashboard transactions={transactions} accounts={accounts} onEdit={openEdit} isDarkMode={isDarkMode} />}
-        {view === 'TRANSACTIONS' && <TransactionsList transactions={transactions} onEdit={openEdit} onDelete={deleteTransaction} isDarkMode={isDarkMode} />}
-        {view === 'ACCOUNTS' && <AccountsList accounts={accounts} setAccounts={setAccounts} isDarkMode={isDarkMode} />}
-        {view === 'LOANS' && <LoansList transactions={transactions} onEdit={openEdit} onDelete={deleteTransaction} isDarkMode={isDarkMode} />}
-        {view === 'INSIGHTS' && <Insights transactions={transactions} isDarkMode={isDarkMode} />}
-        {view === 'SETTINGS' && (
-          <Settings 
-            accentColor={accentColor} setAccentColor={setAccentColor}
-            accounts={accounts} setAccounts={setAccounts}
-            transactions={transactions} onImport={handleImportData}
-            onResetData={() => {}}
-            isDarkMode={isDarkMode}
-            incomeHeads={incomeHeads}
-            setIncomeHeads={setIncomeHeads}
-            expenseHeads={expenseHeads}
-            setExpenseHeads={setExpenseHeads}
-          />
-        )}
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto no-scrollbar p-4 pb-28">
+        <div className="page-transition">
+          {view === 'DASHBOARD' && <Dashboard transactions={transactions} accounts={accounts} onEdit={(tx) => {setEditingTransaction(tx); setIsFormOpen(true);}} isDarkMode={isDarkMode} />}
+          {view === 'TRANSACTIONS' && <TransactionsList transactions={transactions} onEdit={(tx) => {setEditingTransaction(tx); setIsFormOpen(true);}} onDelete={deleteTransaction} isDarkMode={isDarkMode} />}
+          {view === 'ACCOUNTS' && <AccountsList accounts={accounts} setAccounts={setAccounts} isDarkMode={isDarkMode} />}
+          {view === 'LOANS' && <LoansList transactions={transactions} onEdit={(tx) => {setEditingTransaction(tx); setIsFormOpen(true);}} onDelete={deleteTransaction} isDarkMode={isDarkMode} />}
+          {view === 'INSIGHTS' && <Insights transactions={transactions} isDarkMode={isDarkMode} />}
+          {view === 'SETTINGS' && (
+            <Settings 
+              accentColor={accentColor} setAccentColor={setAccentColor}
+              accounts={accounts} setAccounts={setAccounts}
+              transactions={transactions} onImport={(d) => {setAccounts(d.accounts); setTransactions(d.transactions);}}
+              onResetData={() => {}}
+              isDarkMode={isDarkMode}
+              incomeHeads={incomeHeads}
+              setIncomeHeads={setIncomeHeads}
+              expenseHeads={expenseHeads}
+              setExpenseHeads={setExpenseHeads}
+            />
+          )}
+        </div>
       </main>
 
-      {view !== 'SETTINGS' && (
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-24 right-6 flex flex-col gap-3 z-40">
+        <button 
+          onClick={() => setIsAIOpen(true)}
+          disabled={!isOnline}
+          className={`p-4 bg-white dark:bg-slate-800 ${textClasses[accentColor]} rounded-full shadow-xl border border-gray-100 dark:border-slate-700 active:scale-90 transition-all disabled:opacity-50`}
+        >
+          <Sparkles size={22} strokeWidth={2.5} />
+        </button>
         <button 
           onClick={() => { setEditingTransaction(null); setIsFormOpen(true); }}
-          className={`fixed bottom-20 right-6 z-20 ${colorClasses[accentColor]} text-white p-4 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all`}
+          className={`p-5 ${colorClasses[accentColor]} text-white rounded-full shadow-2xl active:scale-90 transition-all`}
         >
-          <Plus size={24} strokeWidth={3} />
+          <Plus size={28} strokeWidth={3} />
         </button>
-      )}
+      </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 flex justify-around p-3 z-10 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] transition-colors duration-300">
-        <NavButton active={view === 'DASHBOARD'} accentColor={accentColor} icon={<LayoutDashboard size={22} />} label="Home" onClick={() => setView('DASHBOARD')} />
+      {/* Navigation Bar with Safe Area Bottom */}
+      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-gray-100 dark:border-slate-800 px-2 pt-3 pb-[env(safe-area-inset-bottom,12px)] flex justify-around z-30 shadow-[0_-8px_30px_rgb(0,0,0,0.04)]">
+        <NavButton active={view === 'DASHBOARD'} accentColor={accentColor} icon={<LayoutDashboard size={22} />} label="Wallet" onClick={() => setView('DASHBOARD')} />
         <NavButton active={view === 'TRANSACTIONS'} accentColor={accentColor} icon={<ArrowLeftRight size={22} />} label="Activity" onClick={() => setView('TRANSACTIONS')} />
         <NavButton active={view === 'LOANS'} accentColor={accentColor} icon={<HandCoins size={22} />} label="Loans" onClick={() => setView('LOANS')} />
-        <NavButton active={view === 'ACCOUNTS'} accentColor={accentColor} icon={<Wallet size={22} />} label="Accounts" onClick={() => setView('ACCOUNTS')} />
-        <NavButton active={view === 'INSIGHTS'} accentColor={accentColor} icon={<PieChart size={22} />} label="Insight" onClick={() => setView('INSIGHTS')} />
+        <NavButton active={view === 'ACCOUNTS'} accentColor={accentColor} icon={<Wallet size={22} />} label="Vaults" onClick={() => setView('ACCOUNTS')} />
+        <NavButton active={view === 'INSIGHTS'} accentColor={accentColor} icon={<PieChart size={22} />} label="Stats" onClick={() => setView('INSIGHTS')} />
       </nav>
 
+      {/* Overlays */}
       {isFormOpen && (
         <TransactionForm 
           accounts={accounts} editingTx={editingTransaction}
-          incomeHeads={incomeHeads}
-          expenseHeads={expenseHeads}
+          incomeHeads={incomeHeads} expenseHeads={expenseHeads}
           onSave={(tx) => editingTransaction ? updateTransaction(tx as Transaction) : addTransaction(tx as Omit<Transaction, 'id'>)}
           onClose={() => { setIsFormOpen(false); setEditingTransaction(null); }}
           isDarkMode={isDarkMode}
@@ -321,16 +317,18 @@ const NavButton: React.FC<NavButtonProps> = ({ active, accentColor, icon, label,
     blue: 'text-blue-600',
     indigo: 'text-indigo-600',
     rose: 'text-rose-600',
-    slate: 'text-slate-800'
+    slate: 'text-white'
   };
 
   return (
     <button 
       onClick={onClick}
-      className={`flex flex-col items-center transition-colors ${active ? textClasses[accentColor] : 'text-gray-400 dark:text-gray-500'}`}
+      className={`flex flex-col items-center flex-1 transition-all duration-300 ${active ? `${textClasses[accentColor]} scale-110` : 'text-gray-400 dark:text-slate-500'}`}
     >
-      {icon}
-      <span className="text-[10px] mt-1 font-medium">{label}</span>
+      <div className={`p-1.5 rounded-xl transition-colors ${active ? 'bg-gray-100 dark:bg-slate-800' : ''}`}>
+        {icon}
+      </div>
+      <span className="text-[9px] mt-1 font-bold uppercase tracking-wider">{label}</span>
     </button>
   );
 };
