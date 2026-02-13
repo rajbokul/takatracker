@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -142,6 +141,22 @@ const App: React.FC = () => {
     if (activityTimerRef.current) window.clearTimeout(activityTimerRef.current);
   };
 
+  // Implemented handleResetData to clear all local data correctly
+  const handleResetData = () => {
+    if (window.confirm("Are you sure you want to reset all data? This will clear all transactions, accounts, and custom categories.")) {
+      setTransactions([]);
+      setAccounts([{ id: '1', name: 'Pocket Cash', type: AccountType.CASH, balance: 0 }]);
+      setIncomeHeads(DEFAULT_INCOME_HEADS);
+      setExpenseHeads(DEFAULT_EXPENSE_HEADS);
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(CATEGORIES_KEY);
+      localStorage.removeItem(LIVERY_KEY);
+      localStorage.removeItem(THEME_KEY);
+      // Refresh to ensure all states are clean
+      window.location.reload();
+    }
+  };
+
   const addTransaction = (newTx: Omit<Transaction, 'id'>) => {
     const id = Math.random().toString(36).substr(2, 9);
     const tx = { ...newTx, id };
@@ -241,7 +256,7 @@ const App: React.FC = () => {
               accentColor={accentColor} setAccentColor={setAccentColor}
               accounts={accounts} setAccounts={setAccounts}
               transactions={transactions} onImport={(d) => {setAccounts(d.accounts); setTransactions(d.transactions);}}
-              onResetData={() => {}}
+              onResetData={handleResetData}
               isDarkMode={isDarkMode}
               incomeHeads={incomeHeads}
               setIncomeHeads={setIncomeHeads}

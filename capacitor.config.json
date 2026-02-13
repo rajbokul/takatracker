@@ -1,0 +1,10 @@
+
+{
+  "appId": "com.personal.takatracker",
+  "appName": "TakaTracker",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
